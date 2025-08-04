@@ -3,7 +3,43 @@ import { db } from "@/lib/db";
 import { wallets, walletTags, scamDetails, walletGraphs, graphNodes, graphEdges } from "@/lib/db/schema";
 import { eq, and, gte, count, sql } from "drizzle-orm";
 
-// GET /api/v1/stats - Lấy thống kê tổng quan của hệ thống
+/**
+ * @swagger
+ * /api/v1/stats:
+ *   get:
+ *     summary: Get system statistics
+ *     description: Retrieve comprehensive statistics about the wallet tracking system
+ *     tags:
+ *       - Stats
+ *     parameters:
+ *       - name: timeframe
+ *         in: query
+ *         description: Time period for statistics
+ *         schema:
+ *           type: string
+ *           enum: [all, 7d, 30d, 90d]
+ *           default: "all"
+ *           example: "30d"
+ *       - name: network
+ *         in: query
+ *         description: Filter statistics by blockchain network
+ *         schema:
+ *           type: string
+ *           example: "ethereum"
+ *     responses:
+ *       200:
+ *         description: System statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Stats'
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

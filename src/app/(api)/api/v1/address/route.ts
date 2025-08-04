@@ -3,7 +3,70 @@ import { db } from "@/lib/db";
 import { wallets, walletTags, scamDetails } from "@/lib/db/schema";
 import { eq, and, inArray, ilike, or } from "drizzle-orm";
 
-// GET /api/v1/address - Tìm kiếm nhiều địa chỉ ví hoặc theo từ khóa
+/**
+ * @swagger
+ * /api/v1/address:
+ *   get:
+ *     summary: Search wallet addresses
+ *     description: Search for multiple wallet addresses or by keyword
+ *     tags:
+ *       - Address
+ *     parameters:
+ *       - name: addresses
+ *         in: query
+ *         description: Comma-separated list of wallet addresses
+ *         schema:
+ *           type: string
+ *           example: "0x123...,0x456..."
+ *       - name: search
+ *         in: query
+ *         description: Search term for owner name or address
+ *         schema:
+ *           type: string
+ *       - name: network
+ *         in: query
+ *         description: Filter by blockchain network
+ *         schema:
+ *           type: string
+ *           example: "ethereum"
+ *       - name: tagType
+ *         in: query
+ *         description: Filter by tag type
+ *         schema:
+ *           type: string
+ *           enum: [EXCHANGE, DEFI, SCAM, MIXER, GAMBLING, MINING, BRIDGE, NFT, LENDING, OTHER]
+ *       - $ref: '#/components/parameters/LimitParam'
+ *       - $ref: '#/components/parameters/OffsetParam'
+ *     responses:
+ *       200:
+ *         description: List of wallet addresses with details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Wallet'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     offset:
+ *                       type: integer
+ *                     hasMore:
+ *                       type: boolean
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -157,7 +220,86 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/v1/address - Thêm nhiều địa chỉ ví cùng lúc
+/**
+ * @swagger
+ * /api/v1/address:
+ *   post:
+ *     summary: Add multiple wallet addresses
+ *     description: Batch add multiple wallet addresses to the system
+ *     tags:
+ *       - Address
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               wallets:
+ *                 type: array
+ *                 maxItems: 50
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - address
+ *                     - chain
+ *                   properties:
+ *                     address:
+ *                       type: string
+ *                       description: Wallet address
+ *                       example: "0x1234567890abcdef"
+ *                     chain:
+ *                       type: string
+ *                       description: Blockchain network
+ *                       example: "ethereum"
+ *                     ownerName:
+ *                       type: string
+ *                       description: Optional owner name
+ *                       example: "John Doe"
+ *             example:
+ *               wallets:
+ *                 - address: "0x1234567890abcdef"
+ *                   chain: "ethereum"
+ *                   ownerName: "Exchange Wallet"
+ *                 - address: "0xabcdef1234567890"
+ *                   chain: "polygon"
+ *     responses:
+ *       200:
+ *         description: Batch operation results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Wallet'
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       address:
+ *                         type: string
+ *                       error:
+ *                         type: string
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     successful:
+ *                       type: integer
+ *                     failed:
+ *                       type: integer
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

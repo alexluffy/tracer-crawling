@@ -8,7 +8,49 @@ import {
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-// GET /api/v1/address/[id] - Tra cứu thông tin địa chỉ ví
+/**
+ * @swagger
+ * /api/v1/address/{id}:
+ *   get:
+ *     summary: Get wallet address details
+ *     description: Retrieve detailed information for a specific wallet address
+ *     tags:
+ *       - Address
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Wallet address to lookup
+ *         schema:
+ *           type: string
+ *           example: "0x1234567890abcdef"
+ *       - name: network
+ *         in: query
+ *         description: Blockchain network (default: ethereum)
+ *         schema:
+ *           type: string
+ *           default: "ethereum"
+ *           example: "ethereum"
+ *     responses:
+ *       200:
+ *         description: Wallet address details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Wallet'
+ *       400:
+ *         description: Invalid address format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Wallet address not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -135,7 +177,91 @@ export async function GET(
   }
 }
 
-// POST /api/v1/address/[id] - Thêm tag mới cho địa chỉ ví
+/**
+ * @swagger
+ * /api/v1/address/{id}:
+ *   post:
+ *     summary: Add tag to wallet address
+ *     description: Add a new tag to a specific wallet address
+ *     tags:
+ *       - Address
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Wallet address to tag
+ *         schema:
+ *           type: string
+ *           example: "0x1234567890abcdef"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tagType
+ *               - addedBy
+ *             properties:
+ *               tagType:
+ *                 type: string
+ *                 enum: [EXCHANGE, DEFI, SCAM, MIXER, GAMBLING, MINING, BRIDGE, NFT, LENDING, OTHER]
+ *                 description: Type of tag to add
+ *                 example: "EXCHANGE"
+ *               addedBy:
+ *                 type: string
+ *                 description: User who added the tag
+ *                 example: "analyst@company.com"
+ *               description:
+ *                 type: string
+ *                 description: Optional description for the tag
+ *                 example: "Major exchange wallet"
+ *               scamDetails:
+ *                 type: object
+ *                 description: Required when tagType is SCAM
+ *                 properties:
+ *                   scamType:
+ *                     type: string
+ *                     example: "Phishing"
+ *                   description:
+ *                     type: string
+ *                     example: "Reported phishing wallet"
+ *                   reportedBy:
+ *                     type: string
+ *                     example: "security@company.com"
+ *                   verified:
+ *                     type: boolean
+ *                     default: false
+ *             example:
+ *               tagType: "EXCHANGE"
+ *               addedBy: "analyst@company.com"
+ *               description: "Binance hot wallet"
+ *     responses:
+ *       201:
+ *         description: Tag added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Tag added successfully"
+ *                 tag:
+ *                   $ref: '#/components/schemas/WalletTag'
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Tag already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
