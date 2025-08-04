@@ -74,8 +74,8 @@ export const walletTags = pgTable("wallet_tags", {
     .references(() => wallets.address, { onDelete: "cascade" }),
   tagType: tagTypeEnum("tag_type").notNull(),
   addedBy: text("added_by")
-    .notNull()
     .references(() => users.id, { onDelete: "set null" }), // Ai đã thêm tag
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const scamDetails = pgTable("scam_details", {
@@ -85,6 +85,7 @@ export const scamDetails = pgTable("scam_details", {
   twitterHandle: text("twitter_handle"),
   reason: text("reason").notNull(),
   scamLink: text("scam_link"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // --- GRAPH DATA TABLES ---
@@ -103,6 +104,7 @@ export const graphNodes = pgTable("graph_nodes", {
     .notNull()
     .references(() => walletGraphs.id, { onDelete: "cascade" }),
   walletAddress: varchar("wallet_address", { length: 42 }).notNull(),
+  nodeType: text("node_type").default("wallet").notNull(),
 });
 
 export const graphEdges = pgTable("graph_edges", {
@@ -110,10 +112,11 @@ export const graphEdges = pgTable("graph_edges", {
   graphId: integer("graph_id")
     .notNull()
     .references(() => walletGraphs.id, { onDelete: "cascade" }),
-  txHash: varchar("tx_hash", { length: 66 }).notNull().unique(),
-  fromNodeAddress: varchar("from_node_address", { length: 42 }).notNull(),
-  toNodeAddress: varchar("to_node_address", { length: 42 }).notNull(),
-  value: numeric("value", { precision: 30, scale: 18 }), // Lưu giá trị lớn với độ chính xác cao
+  transactionHash: varchar("transaction_hash", { length: 66 }),
+  fromWalletAddress: varchar("from_wallet_address", { length: 42 }).notNull(),
+  toWalletAddress: varchar("to_wallet_address", { length: 42 }).notNull(),
+  amount: numeric("amount", { precision: 30, scale: 18 }),
+  timestamp: timestamp("timestamp"),
 });
 
 // --- RELATIONS ---
