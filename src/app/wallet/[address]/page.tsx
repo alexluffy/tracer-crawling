@@ -51,6 +51,16 @@ interface WalletData {
   tags?: Tag[];
 }
 
+interface ApiWalletData {
+  address: string;
+  chain?: string;
+  ownerName?: string;
+  balance?: string;
+  balanceUSD?: string;
+  transactions?: Transaction[];
+  tags?: Tag[];
+}
+
 export default function WalletDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -105,55 +115,24 @@ export default function WalletDetailPage() {
     );
   }
 
-  // Use real data or fallback to mock data for demonstration
-  const mockData: WalletData = {
+  // Use real data from API
+  const displayData: WalletData = walletData ? {
+    address: walletData.address,
+    chain: (walletData as any).chain || "Ethereum",
+    ownerName: (walletData as any).ownerName,
+    balance: (walletData as any).balance,
+    balanceUSD: (walletData as any).balanceUSD,
+    transactions: (walletData as any).transactions || [],
+    tags: (walletData as any).tags || [],
+  } : {
     address: address,
     chain: "Ethereum",
-    ownerName: "Binance 8",
-    balance: "27620.278783978837676989",
-    balanceUSD: "98,179,842",
-    transactions: [
-      {
-        id: "0x3c1d88",
-        from: "Binance 8",
-        to: "Tether USD",
-        value: "0.00000000",
-        timestamp: "11/08/2024, 18:19:11",
-        type: "out",
-        token: "Gwei",
-        fee: "0.00",
-      },
-      {
-        id: "0xc5-b49e",
-        from: "Binance 8",
-        to: "Celer cBridge",
-        value: "0.00000000",
-        timestamp: "11/08/2024, 18:19:11",
-        type: "out",
-        token: "Gwei",
-        fee: "0.00",
-      },
-      {
-        id: "0x92-8681",
-        from: "Binance 8",
-        to: "Chainlink: WETH",
-        value: "0.00000000",
-        timestamp: "11/08/2024, 18:19:11",
-        type: "out",
-        token: "Gwei",
-        fee: "0.00",
-      },
-    ],
-    tags: [
-      {
-        type: "EXCHANGE",
-        addedBy: "system",
-        description: "Major cryptocurrency exchange",
-      },
-    ],
+    ownerName: undefined,
+    balance: undefined,
+    balanceUSD: undefined,
+    transactions: [],
+    tags: [],
   };
-
-  const displayData = walletData || mockData;
 
   if (!displayData) {
     return (
@@ -233,17 +212,25 @@ export default function WalletDetailPage() {
 
           {/* Tags */}
           <div className="flex flex-wrap gap-2">
-            {(displayData as WalletWithDetails)?.tags?.map(
-              (tag: Tag, index: number) => (
+            {displayData.tags && displayData.tags.length > 0 ? (
+              displayData.tags.map((tag: any, index: number) => (
                 <Badge
                   key={index}
                   variant="outline"
                   className="border-green-500/30 text-green-400"
                 >
                   <Shield className="h-3 w-3 mr-1" />
-                  {tag.type}
+                  {tag.tagType || tag.type || 'UNKNOWN'}
                 </Badge>
-              )
+              ))
+            ) : (
+              <Badge
+                variant="outline"
+                className="border-slate-500/30 text-slate-400"
+              >
+                <Shield className="h-3 w-3 mr-1" />
+                WALLET
+              </Badge>
             )}
           </div>
         </div>

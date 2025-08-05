@@ -54,23 +54,29 @@ export async function GET(
     const graph = graphInfo[0];
 
     // Get all nodes in the graph
-    const nodes = await db
-      .select({
-        id: graphNodes.id,
-        walletAddress: graphNodes.walletAddress,
-        nodeType: graphNodes.nodeType,
-        // Join wallet info if requested
-        ...(includeWalletDetails ? {
-          walletChain: wallets.chain,
-          walletOwnerName: wallets.ownerName,
-          walletSearchCount: wallets.searchCount,
-          walletCreatedAt: wallets.createdAt,
-          walletUpdatedAt: wallets.updatedAt
-        } : {})
-      })
-      .from(graphNodes)
-      .leftJoin(wallets, includeWalletDetails ? eq(graphNodes.walletAddress, wallets.address) : undefined)
-      .where(eq(graphNodes.graphId, graphId));
+    const nodes = includeWalletDetails
+      ? await db
+          .select({
+            id: graphNodes.id,
+            walletAddress: graphNodes.walletAddress,
+            nodeType: graphNodes.nodeType,
+            walletChain: wallets.chain,
+            walletOwnerName: wallets.ownerName,
+            walletSearchCount: wallets.searchCount,
+            walletCreatedAt: wallets.createdAt,
+            walletUpdatedAt: wallets.updatedAt
+          })
+          .from(graphNodes)
+          .leftJoin(wallets, eq(graphNodes.walletAddress, wallets.address))
+          .where(eq(graphNodes.graphId, graphId))
+      : await db
+          .select({
+            id: graphNodes.id,
+            walletAddress: graphNodes.walletAddress,
+            nodeType: graphNodes.nodeType
+          })
+          .from(graphNodes)
+          .where(eq(graphNodes.graphId, graphId));
 
     // Get all edges in the graph
     const edges = await db
@@ -102,7 +108,7 @@ export async function GET(
       };
 
       // Add wallet details if requested
-      if (includeWalletDetails) {
+      if (includeWalletDetails && 'walletChain' in node) {
         nodeData.wallet = {
           chain: node.walletChain,
           ownerName: node.walletOwnerName,

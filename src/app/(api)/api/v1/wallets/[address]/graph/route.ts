@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { walletGraphs, graphNodes, graphEdges, wallets } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { walletGraphs, graphNodes, graphEdges, wallets, walletTags } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 /**
  * @swagger
@@ -76,6 +76,11 @@ export async function GET(
 ) {
   try {
     const { address } = await params;
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const nodeType = url.searchParams.get('nodeType'); // Optional filter
+    const offset = (page - 1) * limit;
 
     // Validate address format (basic validation)
     if (!address || address.length < 10) {
@@ -83,6 +88,17 @@ export async function GET(
         {
           success: false,
           error: 'Invalid wallet address format',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid pagination parameters. Page must be >= 1, limit must be 1-100',
         },
         { status: 400 }
       );
@@ -122,17 +138,76 @@ export async function GET(
           nodes: [],
           edges: [],
           createdAt: new Date().toISOString(),
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
         },
       });
     }
 
     const graphId = graph[0].id;
 
-    // Fetch nodes for this graph
-    const nodes = await db
-      .select()
+    // Get total count of nodes for pagination
+    const totalNodesQuery = db
+      .select({ count: sql<number>`count(*)` })
       .from(graphNodes)
-      .where(eq(graphNodes.graphId, graphId));
+      .where(nodeType ? and(eq(graphNodes.graphId, graphId), eq(graphNodes.nodeType, nodeType)) : eq(graphNodes.graphId, graphId));
+    
+    const totalNodesResult = await totalNodesQuery;
+    const totalNodes = totalNodesResult[0]?.count || 0;
+    const totalPages = Math.ceil(totalNodes / limit);
+
+    // Fetch nodes for this graph with pagination
+    const nodesQuery = db
+      .select({
+        id: graphNodes.id,
+        walletAddress: graphNodes.walletAddress,
+        nodeType: graphNodes.nodeType,
+      })
+      .from(graphNodes)
+      .where(nodeType ? and(eq(graphNodes.graphId, graphId), eq(graphNodes.nodeType, nodeType)) : eq(graphNodes.graphId, graphId))
+      .limit(limit)
+      .offset(offset);
+    
+    const nodes = await nodesQuery;
+    
+    // Fetch all wallet info in one batch query
+    const nodeAddresses = nodes.map(node => node.walletAddress);
+    const walletsInfo = nodeAddresses.length > 0 ? await db
+      .select()
+      .from(wallets)
+      .where(sql`${wallets.address} = ANY(ARRAY[${nodeAddresses.map(() => '?').join(',')}])`, ...nodeAddresses) : [];
+    
+    // Create a map for quick lookup
+    const walletMap = new Map();
+    walletsInfo.forEach(wallet => {
+      walletMap.set(wallet.address, wallet);
+    });
+    
+    // Combine nodes with wallet info
+    const nodesWithWallets = nodes.map(node => ({
+      ...node,
+      wallet: walletMap.get(node.walletAddress) || null
+    }));
+
+    // Fetch all tags for all wallet addresses in one query
+    const allTags = nodeAddresses.length > 0 ? await db
+      .select()
+      .from(walletTags)
+      .where(sql`${walletTags.walletAddress} = ANY(ARRAY[${nodeAddresses.map(() => '?').join(',')}])`, ...nodeAddresses)
+      : [];
+
+    // Group tags by wallet address
+    const tagsByWallet: Record<string, any[]> = {};
+    allTags.forEach(tag => {
+      if (!tagsByWallet[tag.walletAddress]) {
+        tagsByWallet[tag.walletAddress] = [];
+      }
+      tagsByWallet[tag.walletAddress].push(tag);
+    });
 
     // Fetch edges for this graph
     const edges = await db
@@ -145,10 +220,12 @@ export async function GET(
       data: {
         id: graph[0].id,
         rootWalletAddress: graph[0].rootWalletAddress,
-        nodes: nodes.map(node => ({
+        nodes: nodesWithWallets.map(node => ({
           id: node.id,
           walletAddress: node.walletAddress,
           nodeType: node.nodeType,
+          wallet: node.wallet,
+          tags: tagsByWallet[node.walletAddress] || [],
         })),
         edges: edges.map(edge => ({
           id: edge.id,
@@ -159,6 +236,14 @@ export async function GET(
           timestamp: edge.timestamp?.toISOString(),
         })),
         createdAt: graph[0].createdAt.toISOString(),
+        pagination: {
+          page,
+          limit,
+          total: totalNodes,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {
