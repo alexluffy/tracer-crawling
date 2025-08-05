@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import 'swagger-ui-react/swagger-ui.css';
 
 // Dynamically import SwaggerUI to avoid SSR issues
@@ -102,8 +103,8 @@ export default function ApiDocsPage() {
               © 2024 Demo Tracer. Built with Next.js and Swagger UI.
             </p>
             <div className="mt-4 space-x-6">
-              <a href="/" className="text-blue-400 hover:text-blue-300">Home</a>
-              <a href="/api-docs" className="text-blue-400 hover:text-blue-300">API Docs</a>
+              <Link href="/" className="text-blue-400 hover:text-blue-300">Home</Link>
+              <Link href="/api-docs" className="text-blue-400 hover:text-blue-300">API Docs</Link>
               <a href="https://github.com" className="text-blue-400 hover:text-blue-300">GitHub</a>
             </div>
           </div>

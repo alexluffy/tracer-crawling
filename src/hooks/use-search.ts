@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import type { ApiResponse, PaginationParams } from "../app/(api)/api/v1/types";
 
 const API_BASE = "/api/v1";
@@ -57,17 +58,18 @@ export function useSearch(params: UseSearchParams) {
 // Search with debounce for real-time search
 export function useSearchDebounced(params: UseSearchParams, debounceMs = 300) {
   const { query, ...otherParams } = params;
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
 
-  // Simple debounce implementation using query key
-  const debouncedQuery = useQuery({
-    queryKey: ["search-debounced", query],
-    queryFn: () => query,
-    enabled: false,
-    staleTime: debounceMs,
-  });
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [query, debounceMs]);
 
   return useSearch({
-    query: debouncedQuery.data || "",
+    query: debouncedQuery,
     ...otherParams,
   });
 }

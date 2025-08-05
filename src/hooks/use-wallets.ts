@@ -38,7 +38,7 @@ export function useWallet(address: string) {
   return useQuery({
     queryKey: ['wallet', address],
     queryFn: async (): Promise<ApiResponse<WalletData>> => {
-      const response = await fetch(`${API_BASE}/wallets/${address}`);
+      const response = await fetch(`${API_BASE}/address/${address}`);
       if (!response.ok) {
         throw new Error('Failed to fetch wallet');
       }

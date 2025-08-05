@@ -3,7 +3,65 @@ import { db } from "@/lib/db";
 import { walletTags, wallets } from "@/lib/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 
-// GET /api/v1/tags - Lấy danh sách tất cả tags hoặc theo filter
+/**
+ * @swagger
+ * /api/v1/tags:
+ *   get:
+ *     summary: Get wallet tags
+ *     description: Retrieve a list of wallet tags with optional filtering
+ *     tags:
+ *       - Tags
+ *     parameters:
+ *       - name: tagType
+ *         in: query
+ *         description: Filter by tag type
+ *         schema:
+ *           type: string
+ *           enum: [EXCHANGE, DEFI, SCAM, MIXER, GAMBLING, MINING, BRIDGE, NFT, LENDING, OTHER]
+ *       - name: addedBy
+ *         in: query
+ *         description: Filter by user who added the tag
+ *         schema:
+ *           type: string
+ *           example: "analyst@company.com"
+ *       - name: walletAddress
+ *         in: query
+ *         description: Filter by wallet address
+ *         schema:
+ *           type: string
+ *           example: "0x1234567890abcdef"
+ *       - $ref: '#/components/parameters/LimitParam'
+ *       - $ref: '#/components/parameters/OffsetParam'
+ *     responses:
+ *       200:
+ *         description: List of wallet tags
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/WalletTag'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     offset:
+ *                       type: integer
+ *                     hasMore:
+ *                       type: boolean
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,7 +76,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Limit cannot exceed 100",
-          code: "LIMIT_EXCEEDED"
+          code: "LIMIT_EXCEEDED",
         },
         { status: 400 }
       );
@@ -36,7 +94,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (walletAddress) {
-      conditions.push(eq(walletTags.walletAddress, walletAddress.toLowerCase()));
+      conditions.push(
+        eq(walletTags.walletAddress, walletAddress.toLowerCase())
+      );
     }
 
     // Build the query with conditions
@@ -49,33 +109,34 @@ export async function GET(request: NextRequest) {
         createdAt: walletTags.createdAt,
         // Join wallet info
         walletChain: wallets.chain,
-        walletOwnerName: wallets.ownerName
+        walletOwnerName: wallets.ownerName,
       })
       .from(walletTags)
       .leftJoin(wallets, eq(walletTags.walletAddress, wallets.address));
 
     // Apply conditions and execute query
-    const results = conditions.length > 0
-      ? await baseQuery
-          .where(and(...conditions))
-          .orderBy(desc(walletTags.createdAt))
-          .limit(limit)
-          .offset(offset)
-      : await baseQuery
-          .orderBy(desc(walletTags.createdAt))
-          .limit(limit)
-          .offset(offset);
+    const results =
+      conditions.length > 0
+        ? await baseQuery
+            .where(and(...conditions))
+            .orderBy(desc(walletTags.createdAt))
+            .limit(limit)
+            .offset(offset)
+        : await baseQuery
+            .orderBy(desc(walletTags.createdAt))
+            .limit(limit)
+            .offset(offset);
 
     // Get tag statistics
     const tagStats = await db
       .select({
         tagType: walletTags.tagType,
-        count: walletTags.id
+        count: walletTags.id,
       })
       .from(walletTags)
       .groupBy(walletTags.tagType);
 
-    const formattedResults = results.map(result => ({
+    const formattedResults = results.map((result) => ({
       id: result.id,
       walletAddress: result.walletAddress,
       tagType: result.tagType,
@@ -83,8 +144,8 @@ export async function GET(request: NextRequest) {
       createdAt: result.createdAt,
       wallet: {
         chain: result.walletChain,
-        ownerName: result.walletOwnerName
-      }
+        ownerName: result.walletOwnerName,
+      },
     }));
 
     return NextResponse.json({
@@ -93,7 +154,7 @@ export async function GET(request: NextRequest) {
         limit,
         offset,
         total: results.length,
-        hasMore: results.length === limit
+        hasMore: results.length === limit,
       },
       statistics: tagStats.reduce((acc, stat) => {
         acc[stat.tagType] = stat.count;
@@ -102,16 +163,15 @@ export async function GET(request: NextRequest) {
       filters: {
         tagType: tagType || null,
         addedBy: addedBy || null,
-        walletAddress: walletAddress || null
-      }
+        walletAddress: walletAddress || null,
+      },
     });
-
   } catch (error) {
     console.error("Error fetching tags:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -128,7 +188,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Tag IDs array is required",
-          code: "MISSING_TAG_IDS"
+          code: "MISSING_TAG_IDS",
         },
         { status: 400 }
       );
@@ -138,7 +198,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           error: "addedBy field is required for authorization",
-          code: "MISSING_ADDED_BY"
+          code: "MISSING_ADDED_BY",
         },
         { status: 400 }
       );
@@ -148,42 +208,38 @@ export async function DELETE(request: NextRequest) {
     const tagsToDelete = await db
       .select()
       .from(walletTags)
-      .where(and(
-        inArray(walletTags.id, tagIds),
-        eq(walletTags.addedBy, addedBy)
-      ));
+      .where(
+        and(inArray(walletTags.id, tagIds), eq(walletTags.addedBy, addedBy))
+      );
 
     if (tagsToDelete.length === 0) {
       return NextResponse.json(
         {
           error: "No tags found that can be deleted by this user",
-          code: "NO_DELETABLE_TAGS"
+          code: "NO_DELETABLE_TAGS",
         },
         { status: 404 }
       );
     }
 
-    const deletableIds = tagsToDelete.map(tag => tag.id);
+    const deletableIds = tagsToDelete.map((tag) => tag.id);
 
     // Delete the tags
-    await db
-      .delete(walletTags)
-      .where(inArray(walletTags.id, deletableIds));
+    await db.delete(walletTags).where(inArray(walletTags.id, deletableIds));
 
     return NextResponse.json({
       success: true,
       message: `Successfully deleted ${deletableIds.length} tags`,
       deletedCount: deletableIds.length,
       deletedIds: deletableIds,
-      notFound: tagIds.filter(id => !deletableIds.includes(id))
+      notFound: tagIds.filter((id) => !deletableIds.includes(id)),
     });
-
   } catch (error) {
     console.error("Error deleting tags:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );

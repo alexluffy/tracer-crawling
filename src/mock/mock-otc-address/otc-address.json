@@ -1,0 +1,124 @@
+{
+  "otcWallets": [
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "32S4hcYSL6DeRd2hezq9vDWPwF6gdZqMQK"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "37fTYauc8pmFh61rTxvmQajUtB1EKYCBUr"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "3Grh425r1dNXuTFivAKW5kHjR4zcuBYSHn"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "3L3XkVYiYfuVwN3CGEKXPj5bvahEackPhf"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "33LTFKQMYAKsC2zGLuyiusVaKb3uGERsVL"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "39aVzBKLXsRdBsviqk9UKsYwxmq3kcdTYm"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "3N7R6hbFv2K5XNt3Cmy8b8wvDyK5A1f6LX"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "152MEUks11MaFw5WLgtwDXE6Az2thytwDM"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "1KM57CQDbwiy37nwb9EARPff9W6dQbbsPw"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "1Jo37vfjk7u1kns61Ggtj565WV3W7uFcAC"
+    },
+    {
+      "source": "f0",
+      "currency": "ETH",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "0xf2c2768fa513c04671f4f364c715c039f8b084f3"
+    },
+    {
+      "source": "f0",
+      "currency": "ETH",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "0x8803814516bb3697cb51e0336e84434c84e955a1"
+    },
+    {
+      "source": "f0",
+      "currency": "ETH",
+      "platform": "Remitano",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "0xad1b90115ca79d97820a5dc767b84a3bed36c607"
+    },
+    {
+      "source": "f0",
+      "currency": "BTC",
+      "platform": "https://x.com/BiCanTho",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "38vqUPfqB9jCi5bYKGzCGGWkA3uuCPCkwB"
+    },
+    {
+      "source": "f0",
+      "currency": "ETH",
+      "platform": "https://x.com/BiCanTho",
+      "description": "",
+      "walletType": "Ví OTC",
+      "address": "0x2A9d11aB94Eb5068495c13A417B55E66385ec70E"
+    }
+  ]
+}

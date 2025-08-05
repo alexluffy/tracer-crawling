@@ -98,6 +98,8 @@ export interface GraphData {
   id: number;
   rootWalletAddress: string;
   createdAt: Date;
+  nodes?: GraphNodeData[];
+  edges?: GraphEdgeData[];
 }
 
 export interface GraphWithDetails extends GraphData {

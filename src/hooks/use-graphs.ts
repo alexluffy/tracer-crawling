@@ -10,6 +10,22 @@ interface UseGraphsParams extends PaginationParams {
 
 // Using CreateGraphRequest from @/app/(api)/api/v1/types
 
+// Fetch wallet graph by address
+export function useWalletGraph(walletAddress: string) {
+  return useQuery({
+    queryKey: ['wallet-graph', walletAddress],
+    queryFn: async (): Promise<ApiResponse<GraphData>> => {
+      const response = await fetch(`${API_BASE}/wallets/${walletAddress}/graph`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch wallet graph');
+      }
+      return response.json();
+    },
+    enabled: !!walletAddress,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 interface GraphNode {
   id: number;
   graphId: number;
