@@ -10,6 +10,9 @@
     "lint": "next lint",
     "import:otc": "tsx scripts/import-otc-wallets.ts",
     "check:otc": "tsx scripts/check-otc-data.ts",
+    "import:graph": "tsx scripts/import-graph-data.ts",
+    "check:graph": "tsx scripts/check-graph-data.ts",
+    "reset:graph": "tsx scripts/reset-graph-tables.ts",
     "seed:db": "tsx scripts/seed-database.ts"
   },
   "dependencies": {
