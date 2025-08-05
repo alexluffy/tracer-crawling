@@ -59,7 +59,7 @@ import { eq, and, or } from 'drizzle-orm';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { address: string; nodeId: string } }
+  { params }: { params: Promise<{ address: string; nodeId: string }> }
 ) {
   try {
     const { address, nodeId } = await params;
@@ -119,9 +119,8 @@ export async function GET(
     const connectedEdges = await db
       .select({
         id: graphEdges.id,
-        fromNodeId: graphEdges.fromNodeId,
-        toNodeId: graphEdges.toNodeId,
-        edgeType: graphEdges.edgeType,
+        fromWalletAddress: graphEdges.fromWalletAddress,
+        toWalletAddress: graphEdges.toWalletAddress,
         amount: graphEdges.amount,
         transactionHash: graphEdges.transactionHash,
         timestamp: graphEdges.timestamp,
@@ -131,8 +130,8 @@ export async function GET(
         and(
           eq(graphEdges.graphId, nodeData.graphId),
           or(
-            eq(graphEdges.fromNodeId, nodeData.id),
-            eq(graphEdges.toNodeId, nodeData.id)
+            eq(graphEdges.fromWalletAddress, nodeData.walletAddress),
+            eq(graphEdges.toWalletAddress, nodeData.walletAddress)
           )
         )
       );

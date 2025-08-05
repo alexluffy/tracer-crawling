@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WalletFlowChart } from "@/components/wallet-flow-chart";
+import { useWallet } from "@/hooks/use-wallets";
 import {
   Activity,
   AlertTriangle,
@@ -20,9 +22,6 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useWallet } from "@/hooks/use-wallets";
-import type { WalletWithDetails } from "@/app/(api)/api/v1/types";
-import { WalletFlowChart } from "@/components/wallet-flow-chart";
 
 interface Transaction {
   id: string;
@@ -51,20 +50,10 @@ interface WalletData {
   tags?: Tag[];
 }
 
-interface ApiWalletData {
-  address: string;
-  chain?: string;
-  ownerName?: string;
-  balance?: string;
-  balanceUSD?: string;
-  transactions?: Transaction[];
-  tags?: Tag[];
-}
-
 export default function WalletDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("wallet");
 
   const address = params.address as string;
@@ -116,23 +105,25 @@ export default function WalletDetailPage() {
   }
 
   // Use real data from API
-  const displayData: WalletData = walletData ? {
-    address: walletData.address,
-    chain: (walletData as any).chain || "Ethereum",
-    ownerName: (walletData as any).ownerName,
-    balance: (walletData as any).balance,
-    balanceUSD: (walletData as any).balanceUSD,
-    transactions: (walletData as any).transactions || [],
-    tags: (walletData as any).tags || [],
-  } : {
-    address: address,
-    chain: "Ethereum",
-    ownerName: undefined,
-    balance: undefined,
-    balanceUSD: undefined,
-    transactions: [],
-    tags: [],
-  };
+  const displayData: WalletData = walletData
+    ? {
+        address: walletData.address,
+        chain: (walletData as any).chain || "Ethereum",
+        ownerName: (walletData as any).ownerName,
+        balance: (walletData as any).balance,
+        balanceUSD: (walletData as any).balanceUSD,
+        transactions: (walletData as any).transactions || [],
+        tags: (walletData as any).tags || [],
+      }
+    : {
+        address: address,
+        chain: "Ethereum",
+        ownerName: undefined,
+        balance: undefined,
+        balanceUSD: undefined,
+        transactions: [],
+        tags: [],
+      };
 
   if (!displayData) {
     return (
@@ -220,7 +211,7 @@ export default function WalletDetailPage() {
                   className="border-green-500/30 text-green-400"
                 >
                   <Shield className="h-3 w-3 mr-1" />
-                  {tag.tagType || tag.type || 'UNKNOWN'}
+                  {tag.tagType || tag.type || "UNKNOWN"}
                 </Badge>
               ))
             ) : (

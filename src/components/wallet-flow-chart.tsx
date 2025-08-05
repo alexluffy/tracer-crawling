@@ -1,26 +1,25 @@
 "use client";
 
-import React, { useCallback, useMemo, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useWalletGraph } from "@/hooks/use-graphs";
+import { ArrowRight, DollarSign, Loader2, Wallet } from "lucide-react";
+import React, { useCallback, useMemo } from "react";
 import ReactFlow, {
-  Node,
-  Edge,
   addEdge,
-  ConnectionLineType,
-  Panel,
-  useNodesState,
-  useEdgesState,
-  MiniMap,
-  Controls,
   Background,
   BackgroundVariant,
+  ConnectionLineType,
+  Controls,
+  Edge,
   MarkerType,
+  MiniMap,
+  Node,
+  Panel,
+  useEdgesState,
+  useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, Wallet, ArrowRight, DollarSign } from "lucide-react";
-import { useWalletGraph } from "@/hooks/use-graphs";
 
 interface WalletFlowChartProps {
   walletAddress: string;
@@ -30,7 +29,6 @@ interface WalletFlowChartProps {
 // Custom node component for wallet
 const WalletNode = ({ data }: { data: any }) => {
   const isMainWallet = data.isMain;
-  const hasTransactions = data.transactionCount > 0;
 
   return (
     <div
@@ -81,10 +79,7 @@ const nodeTypes = {
   wallet: WalletNode,
 };
 
-export function WalletFlowChart({
-  walletAddress,
-  graphId,
-}: WalletFlowChartProps) {
+export function WalletFlowChart({ walletAddress }: WalletFlowChartProps) {
   // Fetch real graph data
   const {
     data: graphResponse,

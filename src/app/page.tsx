@@ -41,10 +41,6 @@ export default function Home() {
     // The search is handled automatically by the hook with debouncing
   };
 
-  const handleWalletClick = (address: string) => {
-    router.push(`/wallet/${address}`);
-  };
-
   const mockTrendingInsights = [
     {
       title: "Ethereum Whales Take Selling $6M as ETH ETF...",
@@ -147,9 +143,7 @@ export default function Home() {
             </Badge>
           </div>
           <div className="flex items-center space-x-4">
-            <nav className="hidden md:flex space-x-6">
-             
-            </nav>
+            <nav className="hidden md:flex space-x-6"></nav>
             <ThemeToggle />
           </div>
         </div>
@@ -258,9 +252,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-white font-medium">
-                        {result.label ||
-                          result.description ||
-                          "Unknown Wallet"}
+                        {result.label || result.description || "Unknown Wallet"}
                       </span>
                       <span className="text-slate-400 text-sm capitalize">
                         {result.type}
@@ -276,7 +268,7 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
-        
+
         {/* Show message for short queries */}
         {searchQuery && searchQuery.length < 2 && (
           <Card className="bg-slate-800/50 border-slate-700 mb-12">

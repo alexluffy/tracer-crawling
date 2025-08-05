@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { walletGraphs, graphNodes, graphEdges, wallets, walletTags } from "@/lib/db/schema";
+import {
+  walletGraphs,
+  graphNodes,
+  graphEdges,
+  wallets,
+  walletTags,
+} from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 
 // GET /api/v1/graph/[id] - Lấy thông tin chi tiết của một graph
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const includeWalletDetails = searchParams.get("includeWalletDetails") === "true";
+    const includeWalletDetails =
+      searchParams.get("includeWalletDetails") === "true";
     const includeTags = searchParams.get("includeTags") === "true";
 
     // Validate graph ID
@@ -20,7 +27,7 @@ export async function GET(
       return NextResponse.json(
         {
           error: "Invalid graph ID",
-          code: "INVALID_GRAPH_ID"
+          code: "INVALID_GRAPH_ID",
         },
         { status: 400 }
       );
@@ -34,7 +41,7 @@ export async function GET(
         createdAt: walletGraphs.createdAt,
         // Join root wallet info
         rootWalletChain: wallets.chain,
-        rootWalletOwnerName: wallets.ownerName
+        rootWalletOwnerName: wallets.ownerName,
       })
       .from(walletGraphs)
       .leftJoin(wallets, eq(walletGraphs.rootWalletAddress, wallets.address))
@@ -45,7 +52,7 @@ export async function GET(
       return NextResponse.json(
         {
           error: "Graph not found",
-          code: "GRAPH_NOT_FOUND"
+          code: "GRAPH_NOT_FOUND",
         },
         { status: 404 }
       );
@@ -64,7 +71,7 @@ export async function GET(
             walletOwnerName: wallets.ownerName,
             walletSearchCount: wallets.searchCount,
             walletCreatedAt: wallets.createdAt,
-            walletUpdatedAt: wallets.updatedAt
+            walletUpdatedAt: wallets.updatedAt,
           })
           .from(graphNodes)
           .leftJoin(wallets, eq(graphNodes.walletAddress, wallets.address))
@@ -73,7 +80,7 @@ export async function GET(
           .select({
             id: graphNodes.id,
             walletAddress: graphNodes.walletAddress,
-            nodeType: graphNodes.nodeType
+            nodeType: graphNodes.nodeType,
           })
           .from(graphNodes)
           .where(eq(graphNodes.graphId, graphId));
@@ -87,48 +94,57 @@ export async function GET(
     // Get tags for all wallets if requested
     let walletTags_data: any[] = [];
     if (includeTags && nodes.length > 0) {
-      const walletAddresses = nodes.map(node => node.walletAddress);
+      const walletAddresses = nodes.map((node) => node.walletAddress);
       walletTags_data = await db
         .select({
           walletAddress: walletTags.walletAddress,
           tagType: walletTags.tagType,
           addedBy: walletTags.addedBy,
-          createdAt: walletTags.createdAt
+          createdAt: walletTags.createdAt,
         })
         .from(walletTags)
         .where(inArray(walletTags.walletAddress, walletAddresses));
     }
 
     // Format nodes with additional data
-    const formattedNodes = nodes.map(node => {
+    const formattedNodes = nodes.map((node) => {
       const nodeData: any = {
         id: node.id,
         walletAddress: node.walletAddress,
-        nodeType: node.nodeType
+        nodeType: node.nodeType,
       };
 
       // Add wallet details if requested
-      if (includeWalletDetails && 'walletChain' in node) {
+      if (includeWalletDetails && "walletChain" in node) {
+        const nodeWithWallet = node as typeof node & {
+          walletChain: unknown;
+          walletOwnerName: string | null;
+          walletSearchCount: number | null;
+          walletCreatedAt: Date | null;
+          walletUpdatedAt: Date | null;
+        };
         nodeData.wallet = {
-          chain: node.walletChain,
-          ownerName: node.walletOwnerName,
-          searchCount: node.walletSearchCount,
-          createdAt: node.walletCreatedAt,
-          updatedAt: node.walletUpdatedAt
+          chain: nodeWithWallet.walletChain,
+          ownerName: nodeWithWallet.walletOwnerName,
+          searchCount: nodeWithWallet.walletSearchCount,
+          createdAt: nodeWithWallet.walletCreatedAt,
+          updatedAt: nodeWithWallet.walletUpdatedAt,
         };
       }
 
       // Add tags if requested
       if (includeTags) {
-        const nodeTags = walletTags_data.filter(tag => tag.walletAddress === node.walletAddress);
-        nodeData.tags = nodeTags.map(tag => ({
+        const nodeTags = walletTags_data.filter(
+          (tag) => tag.walletAddress === node.walletAddress
+        );
+        nodeData.tags = nodeTags.map((tag) => ({
           type: tag.tagType,
           addedBy: tag.addedBy,
-          createdAt: tag.createdAt
+          createdAt: tag.createdAt,
         }));
-        
+
         // Calculate risk score
-        const riskScore = calculateRiskScore(nodeTags.map(t => t.tagType));
+        const riskScore = calculateRiskScore(nodeTags.map((t) => t.tagType));
         nodeData.riskScore = riskScore;
         nodeData.safetyLevel = getSafetyLevel(riskScore);
       }
@@ -137,13 +153,13 @@ export async function GET(
     });
 
     // Format edges
-    const formattedEdges = edges.map(edge => ({
+    const formattedEdges = edges.map((edge) => ({
       id: edge.id,
       fromWalletAddress: edge.fromWalletAddress,
       toWalletAddress: edge.toWalletAddress,
       transactionHash: edge.transactionHash,
       amount: edge.amount,
-      timestamp: edge.timestamp
+      timestamp: edge.timestamp,
     }));
 
     // Calculate graph statistics
@@ -153,23 +169,24 @@ export async function GET(
       nodeTypes: nodes.reduce((acc, node) => {
         acc[node.nodeType] = (acc[node.nodeType] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>)
+      }, {} as Record<string, number>),
     };
 
     if (includeTags) {
-      const allTags = walletTags_data.map(t => t.tagType);
+      const allTags = walletTags_data.map((t) => t.tagType);
       stats.tagDistribution = allTags.reduce((acc, tag) => {
         acc[tag] = (acc[tag] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
-      
+
       const riskScores = formattedNodes
-        .filter(node => node.riskScore !== undefined)
-        .map(node => node.riskScore);
-      
+        .filter((node) => node.riskScore !== undefined)
+        .map((node) => node.riskScore);
+
       if (riskScores.length > 0) {
-        stats.averageRiskScore = riskScores.reduce((sum, score) => sum + score, 0) / riskScores.length;
-        stats.highRiskNodes = riskScores.filter(score => score > 70).length;
+        stats.averageRiskScore =
+          riskScores.reduce((sum, score) => sum + score, 0) / riskScores.length;
+        stats.highRiskNodes = riskScores.filter((score) => score > 70).length;
       }
     }
 
@@ -179,25 +196,24 @@ export async function GET(
       createdAt: graph.createdAt,
       rootWallet: {
         chain: graph.rootWalletChain,
-        ownerName: graph.rootWalletOwnerName
+        ownerName: graph.rootWalletOwnerName,
       },
       nodes: formattedNodes,
       edges: formattedEdges,
       statistics: stats,
       options: {
         includeWalletDetails,
-        includeTags
-      }
+        includeTags,
+      },
     };
 
     return NextResponse.json(response);
-
   } catch (error) {
     console.error("Error fetching graph details:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -205,87 +221,87 @@ export async function GET(
 }
 
 // DELETE /api/v1/graph/[id] - Xóa graph
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-    const graphId = parseInt(id);
+// export async function DELETE(
+//   _: NextRequest,
+//   { params }: { params: { id: string } }
+// ) {
+//   try {
+//     const { id } = params;
+//     const graphId = parseInt(id);
 
-    if (isNaN(graphId)) {
-      return NextResponse.json(
-        {
-          error: "Invalid graph ID",
-          code: "INVALID_GRAPH_ID"
-        },
-        { status: 400 }
-      );
-    }
+//     if (isNaN(graphId)) {
+//       return NextResponse.json(
+//         {
+//           error: "Invalid graph ID",
+//           code: "INVALID_GRAPH_ID"
+//         },
+//         { status: 400 }
+//       );
+//     }
 
-    // Check if graph exists
-    const existingGraph = await db
-      .select()
-      .from(walletGraphs)
-      .where(eq(walletGraphs.id, graphId))
-      .limit(1);
+//     // Check if graph exists
+//     const existingGraph = await db
+//       .select()
+//       .from(walletGraphs)
+//       .where(eq(walletGraphs.id, graphId))
+//       .limit(1);
 
-    if (existingGraph.length === 0) {
-      return NextResponse.json(
-        {
-          error: "Graph not found",
-          code: "GRAPH_NOT_FOUND"
-        },
-        { status: 404 }
-      );
-    }
+//     if (existingGraph.length === 0) {
+//       return NextResponse.json(
+//         {
+//           error: "Graph not found",
+//           code: "GRAPH_NOT_FOUND"
+//         },
+//         { status: 404 }
+//       );
+//     }
 
-    // Delete edges first (foreign key constraint)
-    const deletedEdges = await db
-      .delete(graphEdges)
-      .where(eq(graphEdges.graphId, graphId))
-      .returning();
+//     // Delete edges first (foreign key constraint)
+//     const deletedEdges = await db
+//       .delete(graphEdges)
+//       .where(eq(graphEdges.graphId, graphId))
+//       .returning();
 
-    // Delete nodes
-    const deletedNodes = await db
-      .delete(graphNodes)
-      .where(eq(graphNodes.graphId, graphId))
-      .returning();
+//     // Delete nodes
+//     const deletedNodes = await db
+//       .delete(graphNodes)
+//       .where(eq(graphNodes.graphId, graphId))
+//       .returning();
 
-    // Delete the graph
-    await db
-      .delete(walletGraphs)
-      .where(eq(walletGraphs.id, graphId));
+//     // Delete the graph
+//     await db
+//       .delete(walletGraphs)
+//       .where(eq(walletGraphs.id, graphId));
 
-    return NextResponse.json({
-      success: true,
-      message: "Graph deleted successfully",
-      deleted: {
-        graphId,
-        nodesDeleted: deletedNodes.length,
-        edgesDeleted: deletedEdges.length
-      }
-    });
+//     return NextResponse.json({
+//       success: true,
+//       message: "Graph deleted successfully",
+//       deleted: {
+//         graphId,
+//         nodesDeleted: deletedNodes.length,
+//         edgesDeleted: deletedEdges.length
+//       }
+//     });
 
-  } catch (error) {
-    console.error("Error deleting graph:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        code: "INTERNAL_ERROR"
-      },
-      { status: 500 }
-    );
-  }
-}
+//   } catch (error) {
+//     console.error("Error deleting graph:", error);
+//     return NextResponse.json(
+//       {
+//         error: "Internal server error",
+//         code: "INTERNAL_ERROR"
+//       },
+//       { status: 500 }
+//     );
+//   }
+// }
 
 // PUT /api/v1/graph/[id] - Cập nhật graph (thêm nodes/edges)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { nodes = [], edges = [], action = "add" } = body;
 
@@ -294,7 +310,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: "Invalid graph ID",
-          code: "INVALID_GRAPH_ID"
+          code: "INVALID_GRAPH_ID",
         },
         { status: 400 }
       );
@@ -311,7 +327,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: "Graph not found",
-          code: "GRAPH_NOT_FOUND"
+          code: "GRAPH_NOT_FOUND",
         },
         { status: 404 }
       );
@@ -320,7 +336,7 @@ export async function PUT(
     const results = {
       nodesAdded: 0,
       edgesAdded: 0,
-      errors: [] as string[]
+      errors: [] as string[],
     };
 
     if (action === "add") {
@@ -345,7 +361,7 @@ export async function PUT(
             await db.insert(wallets).values({
               address: walletAddress.toLowerCase(),
               chain: nodeData.chain || "ethereum",
-              ownerName: nodeData.ownerName || null
+              ownerName: nodeData.ownerName || null,
             });
           }
 
@@ -353,33 +369,49 @@ export async function PUT(
           const existingNode = await db
             .select()
             .from(graphNodes)
-            .where(and(
-              eq(graphNodes.graphId, graphId),
-              eq(graphNodes.walletAddress, walletAddress.toLowerCase())
-            ))
+            .where(
+              and(
+                eq(graphNodes.graphId, graphId),
+                eq(graphNodes.walletAddress, walletAddress.toLowerCase())
+              )
+            )
             .limit(1);
 
           if (existingNode.length === 0) {
             await db.insert(graphNodes).values({
               graphId,
               walletAddress: walletAddress.toLowerCase(),
-              nodeType
+              nodeType,
             });
             results.nodesAdded++;
           }
         } catch (error) {
-          results.errors.push(`Error adding node ${nodeData.walletAddress}: ${error}`);
+          results.errors.push(
+            `Error adding node ${nodeData.walletAddress}: ${error}`
+          );
         }
       }
 
       // Add new edges
       for (const edgeData of edges) {
         try {
-          const { fromWalletAddress, toWalletAddress, transactionHash, amount, timestamp } = edgeData;
+          const {
+            fromWalletAddress,
+            toWalletAddress,
+            transactionHash,
+            amount,
+            timestamp,
+          } = edgeData;
 
-          if (!fromWalletAddress || !toWalletAddress || 
-              !isValidAddress(fromWalletAddress) || !isValidAddress(toWalletAddress)) {
-            results.errors.push(`Invalid edge addresses: ${fromWalletAddress} -> ${toWalletAddress}`);
+          if (
+            !fromWalletAddress ||
+            !toWalletAddress ||
+            !isValidAddress(fromWalletAddress) ||
+            !isValidAddress(toWalletAddress)
+          ) {
+            results.errors.push(
+              `Invalid edge addresses: ${fromWalletAddress} -> ${toWalletAddress}`
+            );
             continue;
           }
 
@@ -389,7 +421,7 @@ export async function PUT(
             toWalletAddress: toWalletAddress.toLowerCase(),
             transactionHash: transactionHash || null,
             amount: amount || null,
-            timestamp: timestamp ? new Date(timestamp) : null
+            timestamp: timestamp ? new Date(timestamp) : null,
           });
           results.edgesAdded++;
         } catch (error) {
@@ -401,15 +433,14 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: "Graph updated successfully",
-      results
+      results,
     });
-
   } catch (error) {
     console.error("Error updating graph:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -421,8 +452,12 @@ function isValidAddress(address: string): boolean {
   const ethRegex = /^0x[a-fA-F0-9]{40}$/;
   const tronRegex = /^T[A-Za-z1-9]{33}$/;
   const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-  
-  return ethRegex.test(address) || tronRegex.test(address) || solanaRegex.test(address);
+
+  return (
+    ethRegex.test(address) ||
+    tronRegex.test(address) ||
+    solanaRegex.test(address)
+  );
 }
 
 function calculateRiskScore(tags: string[]): number {
@@ -432,7 +467,7 @@ function calculateRiskScore(tags: string[]): number {
     blacklist: 70,
     otc: 30,
     kol: 10,
-    f0_user: 5
+    f0_user: 5,
   };
 
   if (tags.length === 0) return 0;

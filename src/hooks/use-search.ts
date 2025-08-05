@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ApiResponse, PaginationParams } from "../app/(api)/api/v1/types";
 
 const API_BASE = "/api/v1";
@@ -98,7 +98,7 @@ export function useSearchSuggestions(query: string, limit = 5) {
 }
 
 // Search recent queries (stored in localStorage)
-export function useRecentSearches(maxItems = 10) {
+export function useRecentSearches() {
   return useQuery({
     queryKey: ["recent-searches"],
     queryFn: (): string[] => {

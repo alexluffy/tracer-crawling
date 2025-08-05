@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { walletGraphs, graphNodes, graphEdges, wallets } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { graphEdges, graphNodes, walletGraphs, wallets } from "@/lib/db/schema";
+import { desc, eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 // GET /api/v1/graph - Lấy danh sách graphs hoặc theo filter
 export async function GET(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Limit cannot exceed 50",
-          code: "LIMIT_EXCEEDED"
+          code: "LIMIT_EXCEEDED",
         },
         { status: 400 }
       );
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         createdAt: walletGraphs.createdAt,
         // Join root wallet info
         rootWalletChain: wallets.chain,
-        rootWalletOwnerName: wallets.ownerName
+        rootWalletOwnerName: wallets.ownerName,
       })
       .from(walletGraphs)
       .leftJoin(wallets, eq(walletGraphs.rootWalletAddress, wallets.address));
@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
     // Apply filtering and pagination
     const graphs = await (rootWalletAddress
       ? baseQuery
-          .where(eq(walletGraphs.rootWalletAddress, rootWalletAddress.toLowerCase()))
+          .where(
+            eq(walletGraphs.rootWalletAddress, rootWalletAddress.toLowerCase())
+          )
           .orderBy(desc(walletGraphs.createdAt))
           .limit(limit)
           .offset(offset)
@@ -58,8 +60,8 @@ export async function GET(request: NextRequest) {
         createdAt: graph.createdAt,
         rootWallet: {
           chain: graph.rootWalletChain,
-          ownerName: graph.rootWalletOwnerName
-        }
+          ownerName: graph.rootWalletOwnerName,
+        },
       };
 
       // Include nodes if requested
@@ -71,20 +73,20 @@ export async function GET(request: NextRequest) {
             nodeType: graphNodes.nodeType,
             // Join wallet info for each node
             walletChain: wallets.chain,
-            walletOwnerName: wallets.ownerName
+            walletOwnerName: wallets.ownerName,
           })
           .from(graphNodes)
           .leftJoin(wallets, eq(graphNodes.walletAddress, wallets.address))
           .where(eq(graphNodes.graphId, graph.id));
 
-        result.nodes = nodes.map(node => ({
+        result.nodes = nodes.map((node) => ({
           id: node.id,
           walletAddress: node.walletAddress,
           nodeType: node.nodeType,
           wallet: {
             chain: node.walletChain,
-            ownerName: node.walletOwnerName
-          }
+            ownerName: node.walletOwnerName,
+          },
         }));
         result.nodeCount = nodes.length;
       }
@@ -96,13 +98,13 @@ export async function GET(request: NextRequest) {
           .from(graphEdges)
           .where(eq(graphEdges.graphId, graph.id));
 
-        result.edges = edges.map(edge => ({
+        result.edges = edges.map((edge) => ({
           id: edge.id,
           fromWalletAddress: edge.fromWalletAddress,
           toWalletAddress: edge.toWalletAddress,
           transactionHash: edge.transactionHash,
           amount: edge.amount,
-          timestamp: edge.timestamp
+          timestamp: edge.timestamp,
         }));
         result.edgeCount = edges.length;
       }
@@ -133,21 +135,20 @@ export async function GET(request: NextRequest) {
         limit,
         offset,
         total: results.length,
-        hasMore: results.length === limit
+        hasMore: results.length === limit,
       },
       filters: {
         rootWalletAddress: rootWalletAddress || null,
         includeNodes,
-        includeEdges
-      }
+        includeEdges,
+      },
     });
-
   } catch (error) {
     console.error("Error fetching graphs:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Valid root wallet address is required",
-          code: "INVALID_ROOT_ADDRESS"
+          code: "INVALID_ROOT_ADDRESS",
         },
         { status: 400 }
       );
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "At least one node is required",
-          code: "MISSING_NODES"
+          code: "MISSING_NODES",
         },
         { status: 400 }
       );
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Edges must be an array",
-          code: "INVALID_EDGES"
+          code: "INVALID_EDGES",
         },
         { status: 400 }
       );
@@ -203,7 +204,7 @@ export async function POST(request: NextRequest) {
       await db.insert(wallets).values({
         address: rootWalletAddress.toLowerCase(),
         chain: "ethereum", // Default chain
-        ownerName: null
+        ownerName: null,
       });
     }
 
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
     const [newGraph] = await db
       .insert(walletGraphs)
       .values({
-        rootWalletAddress: rootWalletAddress.toLowerCase()
+        rootWalletAddress: rootWalletAddress.toLowerCase(),
       })
       .returning();
 
@@ -235,7 +236,7 @@ export async function POST(request: NextRequest) {
         await db.insert(wallets).values({
           address: walletAddress.toLowerCase(),
           chain: nodeData.chain || "ethereum",
-          ownerName: nodeData.ownerName || null
+          ownerName: nodeData.ownerName || null,
         });
       }
 
@@ -244,24 +245,34 @@ export async function POST(request: NextRequest) {
         .values({
           graphId: newGraph.id,
           walletAddress: walletAddress.toLowerCase(),
-          nodeType
+          nodeType,
         })
         .returning();
 
       createdNodes.push({
         id: newNode.id,
         walletAddress: newNode.walletAddress,
-        nodeType: newNode.nodeType
+        nodeType: newNode.nodeType,
       });
     }
 
     // Create edges
     const createdEdges = [];
     for (const edgeData of edges) {
-      const { fromWalletAddress, toWalletAddress, transactionHash, amount, timestamp } = edgeData;
+      const {
+        fromWalletAddress,
+        toWalletAddress,
+        transactionHash,
+        amount,
+        timestamp,
+      } = edgeData;
 
-      if (!fromWalletAddress || !toWalletAddress || 
-          !isValidAddress(fromWalletAddress) || !isValidAddress(toWalletAddress)) {
+      if (
+        !fromWalletAddress ||
+        !toWalletAddress ||
+        !isValidAddress(fromWalletAddress) ||
+        !isValidAddress(toWalletAddress)
+      ) {
         continue; // Skip invalid edges
       }
 
@@ -273,7 +284,7 @@ export async function POST(request: NextRequest) {
           toWalletAddress: toWalletAddress.toLowerCase(),
           transactionHash: transactionHash || null,
           amount: amount || null,
-          timestamp: timestamp ? new Date(timestamp) : null
+          timestamp: timestamp ? new Date(timestamp) : null,
         })
         .returning();
 
@@ -283,30 +294,32 @@ export async function POST(request: NextRequest) {
         toWalletAddress: newEdge.toWalletAddress,
         transactionHash: newEdge.transactionHash,
         amount: newEdge.amount,
-        timestamp: newEdge.timestamp
+        timestamp: newEdge.timestamp,
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Graph created successfully",
-      graph: {
-        id: newGraph.id,
-        rootWalletAddress: newGraph.rootWalletAddress,
-        createdAt: newGraph.createdAt,
-        nodeCount: createdNodes.length,
-        edgeCount: createdEdges.length,
-        nodes: createdNodes,
-        edges: createdEdges
-      }
-    }, { status: 201 });
-
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Graph created successfully",
+        graph: {
+          id: newGraph.id,
+          rootWalletAddress: newGraph.rootWalletAddress,
+          createdAt: newGraph.createdAt,
+          nodeCount: createdNodes.length,
+          edgeCount: createdEdges.length,
+          nodes: createdNodes,
+          edges: createdEdges,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating graph:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
       { status: 500 }
     );
@@ -317,12 +330,16 @@ export async function POST(request: NextRequest) {
 function isValidAddress(address: string): boolean {
   // Ethereum address validation (42 characters, starts with 0x)
   const ethRegex = /^0x[a-fA-F0-9]{40}$/;
-  
+
   // Tron address validation (34 characters, starts with T)
   const tronRegex = /^T[A-Za-z1-9]{33}$/;
-  
+
   // Solana address validation (32-44 characters, base58)
   const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-  
-  return ethRegex.test(address) || tronRegex.test(address) || solanaRegex.test(address);
+
+  return (
+    ethRegex.test(address) ||
+    tronRegex.test(address) ||
+    solanaRegex.test(address)
+  );
 }

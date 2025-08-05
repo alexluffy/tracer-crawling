@@ -3,6 +3,7 @@
 import { relations } from "drizzle-orm";
 import {
   integer,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -10,7 +11,6 @@ import {
   text,
   timestamp,
   varchar,
-  numeric,
 } from "drizzle-orm/pg-core";
 
 // --- ENUMS ---

@@ -1,7 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { walletGraphs, graphNodes, graphEdges, wallets, walletTags } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import {
+  walletGraphs,
+  graphNodes,
+  graphEdges,
+  wallets,
+  walletTags,
+} from "@/lib/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 /**
  * @swagger
@@ -77,9 +83,9 @@ export async function GET(
   try {
     const { address } = await params;
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '50');
-    const nodeType = url.searchParams.get('nodeType'); // Optional filter
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const nodeType = url.searchParams.get("nodeType"); // Optional filter
     const offset = (page - 1) * limit;
 
     // Validate address format (basic validation)
@@ -87,7 +93,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid wallet address format',
+          error: "Invalid wallet address format",
         },
         { status: 400 }
       );
@@ -98,7 +104,8 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid pagination parameters. Page must be >= 1, limit must be 1-100',
+          error:
+            "Invalid pagination parameters. Page must be >= 1, limit must be 1-100",
         },
         { status: 400 }
       );
@@ -115,7 +122,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: 'Wallet not found',
+          error: "Wallet not found",
         },
         { status: 404 }
       );
@@ -154,8 +161,15 @@ export async function GET(
     const totalNodesQuery = db
       .select({ count: sql<number>`count(*)` })
       .from(graphNodes)
-      .where(nodeType ? and(eq(graphNodes.graphId, graphId), eq(graphNodes.nodeType, nodeType)) : eq(graphNodes.graphId, graphId));
-    
+      .where(
+        nodeType
+          ? and(
+              eq(graphNodes.graphId, graphId),
+              eq(graphNodes.nodeType, nodeType)
+            )
+          : eq(graphNodes.graphId, graphId)
+      );
+
     const totalNodesResult = await totalNodesQuery;
     const totalNodes = totalNodesResult[0]?.count || 0;
     const totalPages = Math.ceil(totalNodes / limit);
@@ -168,41 +182,57 @@ export async function GET(
         nodeType: graphNodes.nodeType,
       })
       .from(graphNodes)
-      .where(nodeType ? and(eq(graphNodes.graphId, graphId), eq(graphNodes.nodeType, nodeType)) : eq(graphNodes.graphId, graphId))
+      .where(
+        nodeType
+          ? and(
+              eq(graphNodes.graphId, graphId),
+              eq(graphNodes.nodeType, nodeType)
+            )
+          : eq(graphNodes.graphId, graphId)
+      )
       .limit(limit)
       .offset(offset);
-    
+
     const nodes = await nodesQuery;
-    
+
     // Fetch all wallet info in one batch query
-    const nodeAddresses = nodes.map(node => node.walletAddress);
-    const walletsInfo = nodeAddresses.length > 0 ? await db
-      .select()
-      .from(wallets)
-      .where(sql`${wallets.address} = ANY(ARRAY[${nodeAddresses.map(() => '?').join(',')}])`, ...nodeAddresses) : [];
-    
+    const nodeAddresses = nodes.map((node) => node.walletAddress);
+    const walletsInfo =
+      nodeAddresses.length > 0
+        ? await db
+            .select()
+            .from(wallets)
+            .where(
+              sql`${wallets.address} = ANY(${nodeAddresses})`
+            )
+        : [];
+
     // Create a map for quick lookup
     const walletMap = new Map();
-    walletsInfo.forEach(wallet => {
+    walletsInfo.forEach((wallet) => {
       walletMap.set(wallet.address, wallet);
     });
-    
+
     // Combine nodes with wallet info
-    const nodesWithWallets = nodes.map(node => ({
+    const nodesWithWallets = nodes.map((node) => ({
       ...node,
-      wallet: walletMap.get(node.walletAddress) || null
+      wallet: walletMap.get(node.walletAddress) || null,
     }));
 
     // Fetch all tags for all wallet addresses in one query
-    const allTags = nodeAddresses.length > 0 ? await db
-      .select()
-      .from(walletTags)
-      .where(sql`${walletTags.walletAddress} = ANY(ARRAY[${nodeAddresses.map(() => '?').join(',')}])`, ...nodeAddresses)
-      : [];
+    const allTags =
+      nodeAddresses.length > 0
+        ? await db
+            .select()
+            .from(walletTags)
+            .where(
+              sql`${walletTags.walletAddress} = ANY(${nodeAddresses})`
+            )
+        : [];
 
     // Group tags by wallet address
     const tagsByWallet: Record<string, any[]> = {};
-    allTags.forEach(tag => {
+    allTags.forEach((tag) => {
       if (!tagsByWallet[tag.walletAddress]) {
         tagsByWallet[tag.walletAddress] = [];
       }
@@ -220,14 +250,14 @@ export async function GET(
       data: {
         id: graph[0].id,
         rootWalletAddress: graph[0].rootWalletAddress,
-        nodes: nodesWithWallets.map(node => ({
+        nodes: nodesWithWallets.map((node) => ({
           id: node.id,
           walletAddress: node.walletAddress,
           nodeType: node.nodeType,
           wallet: node.wallet,
           tags: tagsByWallet[node.walletAddress] || [],
         })),
-        edges: edges.map(edge => ({
+        edges: edges.map((edge) => ({
           id: edge.id,
           fromWalletAddress: edge.fromWalletAddress,
           toWalletAddress: edge.toWalletAddress,
@@ -247,11 +277,11 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error fetching wallet graph:', error);
+    console.error("Error fetching wallet graph:", error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: "Internal server error",
       },
       { status: 500 }
     );
@@ -327,7 +357,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid wallet address format',
+          error: "Invalid wallet address format",
         },
         { status: 400 }
       );
@@ -344,14 +374,14 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: 'Wallet not found',
+          error: "Wallet not found",
         },
         { status: 404 }
       );
     }
 
     // Create or get existing graph
-    let graph = await db
+    const graph = await db
       .select()
       .from(walletGraphs)
       .where(eq(walletGraphs.rootWalletAddress, address))
@@ -370,7 +400,7 @@ export async function POST(
       graphId = newGraph[0].id;
     } else {
       graphId = graph[0].id;
-      
+
       // Clear existing nodes and edges
       await db.delete(graphNodes).where(eq(graphNodes.graphId, graphId));
       await db.delete(graphEdges).where(eq(graphEdges.graphId, graphId));
@@ -382,7 +412,7 @@ export async function POST(
         await db.insert(graphNodes).values({
           graphId,
           walletAddress: node.walletAddress,
-          nodeType: node.nodeType || 'wallet',
+          nodeType: node.nodeType || "wallet",
         });
       }
     }
@@ -405,15 +435,15 @@ export async function POST(
       success: true,
       data: {
         graphId,
-        message: 'Graph created/updated successfully',
+        message: "Graph created/updated successfully",
       },
     });
   } catch (error) {
-    console.error('Error creating/updating wallet graph:', error);
+    console.error("Error creating/updating wallet graph:", error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: "Internal server error",
       },
       { status: 500 }
     );

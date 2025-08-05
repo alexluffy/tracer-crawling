@@ -68,7 +68,7 @@ import { eq, and, or, sql } from 'drizzle-orm';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { address: string; nodeId: string } }
+  { params }: { params: Promise<{ address: string; nodeId: string }> }
 ) {
   try {
     const { address, nodeId } = await params;
@@ -102,7 +102,11 @@ export async function GET(
 
     // Verify node exists
     const node = await db
-      .select({ id: graphNodes.id, graphId: graphNodes.graphId })
+      .select({ 
+        id: graphNodes.id, 
+        graphId: graphNodes.graphId,
+        walletAddress: graphNodes.walletAddress
+      })
       .from(graphNodes)
       .where(eq(graphNodes.id, parseInt(nodeId)))
       .limit(1);
@@ -121,19 +125,19 @@ export async function GET(
     if (direction === 'incoming') {
       edgeCondition = and(
         eq(graphEdges.graphId, nodeData.graphId),
-        eq(graphEdges.toNodeId, nodeData.id)
+        eq(graphEdges.toWalletAddress, nodeData.walletAddress)
       );
     } else if (direction === 'outgoing') {
       edgeCondition = and(
         eq(graphEdges.graphId, nodeData.graphId),
-        eq(graphEdges.fromNodeId, nodeData.id)
+        eq(graphEdges.fromWalletAddress, nodeData.walletAddress)
       );
     } else {
       edgeCondition = and(
         eq(graphEdges.graphId, nodeData.graphId),
         or(
-          eq(graphEdges.fromNodeId, nodeData.id),
-          eq(graphEdges.toNodeId, nodeData.id)
+          eq(graphEdges.fromWalletAddress, nodeData.walletAddress),
+          eq(graphEdges.toWalletAddress, nodeData.walletAddress)
         )
       );
     }
@@ -147,21 +151,20 @@ export async function GET(
     const totalConnections = totalCountResult[0]?.count || 0;
     const totalPages = Math.ceil(totalConnections / limit);
 
-    // Get edges with connected node information
+    // Get edges with connected wallet information
     const edgesWithNodes = await db
       .select({
         edgeId: graphEdges.id,
-        fromNodeId: graphEdges.fromNodeId,
-        toNodeId: graphEdges.toNodeId,
-        edgeType: graphEdges.edgeType,
+        fromWalletAddress: graphEdges.fromWalletAddress,
+        toWalletAddress: graphEdges.toWalletAddress,
         amount: graphEdges.amount,
         transactionHash: graphEdges.transactionHash,
         timestamp: graphEdges.timestamp,
-        // Connected node info
-        connectedNodeId: sql<number>`
+        // Connected wallet address
+        connectedWalletAddress: sql<string>`
           CASE 
-            WHEN ${graphEdges.fromNodeId} = ${nodeData.id} THEN ${graphEdges.toNodeId}
-            ELSE ${graphEdges.fromNodeId}
+            WHEN ${graphEdges.fromWalletAddress} = ${nodeData.walletAddress} THEN ${graphEdges.toWalletAddress}
+            ELSE ${graphEdges.fromWalletAddress}
           END
         `,
       })
@@ -170,29 +173,30 @@ export async function GET(
       .limit(limit)
       .offset(offset);
 
+    // Get connected wallet addresses
+    const connectedWalletAddresses = edgesWithNodes.map(edge => edge.connectedWalletAddress);
+    
     // Get connected nodes details
-    const connectedNodeIds = edgesWithNodes.map(edge => edge.connectedNodeId);
-    const connectedNodes = connectedNodeIds.length > 0 ? await db
+    const connectedNodes = connectedWalletAddresses.length > 0 ? await db
       .select({
         id: graphNodes.id,
         walletAddress: graphNodes.walletAddress,
         nodeType: graphNodes.nodeType,
       })
       .from(graphNodes)
-      .where(sql`${graphNodes.id} = ANY(ARRAY[${connectedNodeIds.map(() => '?').join(',')}])`, ...connectedNodeIds) : [];
+      .where(sql`${graphNodes.walletAddress} = ANY(${connectedWalletAddresses})`) : [];
 
     // Get wallet info for connected nodes
-    const walletAddresses = connectedNodes.map(node => node.walletAddress);
-    const walletsInfo = walletAddresses.length > 0 ? await db
+    const walletsInfo = connectedWalletAddresses.length > 0 ? await db
       .select()
       .from(wallets)
-      .where(sql`${wallets.address} = ANY(ARRAY[${walletAddresses.map(() => '?').join(',')}])`, ...walletAddresses) : [];
+      .where(sql`${wallets.address} = ANY(${connectedWalletAddresses})`) : [];
 
     // Get tags for connected nodes
-    const allTags = walletAddresses.length > 0 ? await db
+    const allTags = connectedWalletAddresses.length > 0 ? await db
       .select()
       .from(walletTags)
-      .where(sql`${walletTags.walletAddress} = ANY(ARRAY[${walletAddresses.map(() => '?').join(',')}])`, ...walletAddresses) : [];
+      .where(sql`${walletTags.walletAddress} = ANY(${connectedWalletAddresses})`) : [];
 
     // Create maps for quick lookup
     const walletMap = new Map();
@@ -210,7 +214,7 @@ export async function GET(
 
     const nodeMap = new Map();
     connectedNodes.forEach(node => {
-      nodeMap.set(node.id, {
+      nodeMap.set(node.walletAddress, {
         ...node,
         wallet: walletMap.get(node.walletAddress) || null,
         tags: tagsByWallet[node.walletAddress] || [],
@@ -221,15 +225,14 @@ export async function GET(
     const connections = edgesWithNodes.map(edge => ({
       edge: {
         id: edge.edgeId,
-        fromNodeId: edge.fromNodeId,
-        toNodeId: edge.toNodeId,
-        edgeType: edge.edgeType,
+        fromWalletAddress: edge.fromWalletAddress,
+        toWalletAddress: edge.toWalletAddress,
         amount: edge.amount,
         transactionHash: edge.transactionHash,
         timestamp: edge.timestamp,
       },
-      connectedNode: nodeMap.get(edge.connectedNodeId) || null,
-      direction: edge.fromNodeId === nodeData.id ? 'outgoing' : 'incoming',
+      connectedNode: nodeMap.get(edge.connectedWalletAddress) || null,
+      direction: edge.fromWalletAddress === nodeData.walletAddress ? 'outgoing' : 'incoming',
     }));
 
     return NextResponse.json({
